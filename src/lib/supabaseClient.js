@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+// DO NOT LEAVE THIS IN PRODUCTION
+const supabaseUrl = "https://kktfairmpogwlitxqeag.supabase.co"; 
+const supabaseKey = "sb_publishable_tx28nZZRv5r9gtzbFa0jeQ_aWyQQijr";
 
 // ADD THIS LOG:
 console.log("LOG 1: Supabase Client initializing with:", { 
