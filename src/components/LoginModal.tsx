@@ -3,39 +3,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Loader2 } from "lucide-react"; // Added Loader2 for a nice loading state
+import { LogIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Props {
-  // Updated to return a Promise<boolean>
-  onLogin: (email: string, password: string) => Promise<boolean>;
+  onLogin: (email: string, password: string) => boolean;
 }
 
 const LoginModal = ({ onLogin }: Props) => {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // New state to handle loading
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true); // Disable button while checking database
-
-    try {
-      const success = await onLogin(email, password);
-      
-      if (success) {
-        setOpen(false);
-        setEmail("");
-        setPassword("");
-        toast({ title: "Welcome back!", description: "You're now logged in as owner." });
-      } else {
-        toast({ title: "Login failed", description: "Invalid email or password.", variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Something went wrong. Try again.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+    const success = onLogin(email, password);
+    if (success) {
+      setOpen(false);
+      setEmail("");
+      setPassword("");
+      toast({ title: "Welcome back!", description: "You're now logged in as owner." });
+    } else {
+      toast({ title: "Login failed", description: "Invalid email or password.", variant: "destructive" });
     }
   };
 
@@ -58,40 +47,13 @@ const LoginModal = ({ onLogin }: Props) => {
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="admin@restaurant.com" 
-                disabled={isLoading}
-                required 
-                className="bg-muted/50" 
-              />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@restaurant.com" required className="bg-muted/50" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="••••••" 
-                disabled={isLoading}
-                required 
-                className="bg-muted/50" 
-              />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required className="bg-muted/50" />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
+            <Button type="submit" className="w-full">Sign In</Button>
           </form>
         </DialogContent>
       </Dialog>
