@@ -1,5 +1,5 @@
-import { Category, MenuItem, RestaurantInfo, OrderItem } from "./types";
-import supabase from './supabaseClient';  // Import Supabase client setup
+import { Category, MenuItem, RestaurantInfo } from "./types";
+import supabase from './supabaseClient';
 
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
@@ -7,154 +7,112 @@ const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
-// Default owner credentials (in your Supabase `admins` table)
+// Default owner credentials (from Supabase)
 const DEFAULT_OWNER = { email: "admin@restaurant.com", password: "admin123" };
 
-// Dummy default restaurant info
 const defaultRestaurant: RestaurantInfo = {
-  name: "Default Restaurant",  // Simple name
-  tagline: "Just a simple restaurant",  // Dummy tagline
-  logo_url: "",  // No logo in default
+  name: "La Maison",
+  tagline: "Fine dining, reimagined",
+  logo_url: "",
 };
 
-// Dummy default categories (simplified)
 const defaultCategories: Category[] = [
-  { id: "cat-1", name: "Appetizers", order_index: 0, created_at: new Date().toISOString() },
+  { id: "cat-1", name: "Starters", order_index: 0, created_at: new Date().toISOString() },
   { id: "cat-2", name: "Main Course", order_index: 1, created_at: new Date().toISOString() },
+  { id: "cat-3", name: "Desserts", order_index: 2, created_at: new Date().toISOString() },
+  { id: "cat-4", name: "Drinks", order_index: 3, created_at: new Date().toISOString() },
 ];
 
-// Dummy default menu items (simplified)
-const defaultItems: MenuItem[] = [
-  { id: "item-1", name: "Caesar Salad", description: "Classic Caesar Salad with fresh greens.", price: 7.5, available: true, image_url: "https://via.placeholder.com/150", category_id: "cat-1", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-2", name: "Grilled Chicken", description: "Juicy grilled chicken with a savory marinade.", price: 15.0, available: true, image_url: "https://via.placeholder.com/150", category_id: "cat-2", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
+// Function to retrieve data from Supabase and store in variables
+async function getFromSupabase<T>(key: string, table: string, defaults: T): Promise<T> {
+  const { data, error } = await supabase.from(table).select('*');
 
-function getOrInit<T>(key: string, defaults: T): T {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  localStorage.setItem(key, JSON.stringify(defaults));
-  return defaults;
-}
+  if (error || !data) {
+    console.error(`Error fetching data from Supabase for ${table}:`, error);
+    return defaults;  // Return defaults if error occurs
+  }
 
-function save<T>(key: string, data: T) {
+  // Storing the fetched data in localStorage for persistence
   localStorage.setItem(key, JSON.stringify(data));
+
+  return data as T;  // Return fetched data
 }
 
 // Restaurant
 export async function getRestaurant(): Promise<RestaurantInfo> {
-  const { data, error } = await supabase
-    .from('shops')
-    .select('*')
-    .single();
-
-  // If Supabase fetch fails, return the default restaurant
-  if (error || !data) {
-    return defaultRestaurant; // Return default data if error occurs
-  }
-
-  return {
-    name: data.name,
-    tagline: data.tagline,
-    logo_url: data.logo_url || '',
-  };
+  return getFromSupabase(RESTAURANT_KEY, 'shops', defaultRestaurant);
 }
 
-export async function saveRestaurant(info: RestaurantInfo) {
-  const { error } = await supabase
-    .from('shops')
-    .upsert({
-      name: info.name,
-      tagline: info.tagline,
-      logo_url: info.logo_url,
-    });
-
-  if (error) {
-    console.error('Error saving restaurant info:', error.message);
-  }
+export async function saveRestaurant(info: RestaurantInfo): Promise<void> {
+  // For now we save it to localStorage but can extend to Supabase as needed.
+  localStorage.setItem(RESTAURANT_KEY, JSON.stringify(info));
 }
 
 // Categories
 export async function getCategories(): Promise<Category[]> {
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('order_index', { ascending: true });
-
-  // If Supabase fetch fails, return the default categories
-  if (error || !data) {
-    return defaultCategories; // Return default categories if error occurs
-  }
-
-  return data;
+  const categories = await getFromSupabase(CATEGORIES_KEY, 'categories', defaultCategories);
+  return categories.sort((a, b) => a.order_index - b.order_index);
 }
 
-export async function saveCategories(cats: Category[]) {
-  const { error } = await supabase
-    .from('categories')
-    .upsert(cats);
-
-  if (error) {
-    console.error('Error saving categories:', error.message);
-  }
+export async function saveCategories(cats: Category[]): Promise<void> {
+  // Save locally for now (can be extended to Supabase if needed)
+  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(cats));
 }
 
 // Menu Items
 export async function getMenuItems(): Promise<MenuItem[]> {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .select('*');
-
-  // If Supabase fetch fails, return the default items
-  if (error || !data) {
-    return defaultItems; // Return default items if error occurs
-  }
-
-  return data;
+  return getFromSupabase(ITEMS_KEY, 'menu_items', []);
 }
 
-export async function saveMenuItems(items: MenuItem[]) {
-  const { error } = await supabase
-    .from('menu_items')
-    .upsert(items);
-
-  if (error) {
-    console.error('Error saving menu items:', error.message);
-  }
+export async function saveMenuItems(items: MenuItem[]): Promise<void> {
+  // Save locally for now (can be extended to Supabase if needed)
+  localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
 }
 
-// Order
+export type OrderItem = {
+  item_id: string;
+  quantity: number;
+};
+
+// Get current order from localStorage
 export function getOrder(): OrderItem[] {
-  return getOrInit(ORDER_KEY, []);
+  return JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
 }
 
-export function saveOrder(order: OrderItem[]) {
+// Save order to localStorage
+export function saveOrder(order: OrderItem[]): void {
   localStorage.setItem(ORDER_KEY, JSON.stringify(order));
 }
 
-export function clearOrder() {
+// Clear order (optional)
+export function clearOrder(): void {
   localStorage.removeItem(ORDER_KEY);
 }
 
 // Auth
 export async function login(email: string, password: string): Promise<boolean> {
+  // Query Supabase for user validation
   const { data, error } = await supabase
-    .from('admins')
+    .from('admins')  // Query the admins table in Supabase
     .select('*')
     .eq('email', email)
-    .eq('password', password)
     .single();
 
-  if (error || !data) {
-    return false;
+  if (error) {
+    console.error('Error fetching user from Supabase:', error);
+    return false;  // Return false if an error occurs (e.g., user not found)
   }
 
-  localStorage.setItem(AUTH_KEY, "true");
-  return true;
+  // Check if the password matches
+  if (data && data.password === password) {
+    localStorage.setItem(AUTH_KEY, "true");
+    return true;  // Successful login
+  }
+
+  return false;  // Return false if email or password doesn't match
 }
 
-export function logout() {
+export function logout(): void {
   localStorage.removeItem(AUTH_KEY);
 }
 
