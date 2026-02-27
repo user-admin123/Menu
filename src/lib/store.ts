@@ -48,7 +48,11 @@ export async function getRestaurant(): Promise<RestaurantInfo | null> {
     .eq("owner_id", user.id)
     .single();
 
-  if (error) return null;
+  if (error) {
+    console.error("Error fetching restaurant:", error.message);
+    return null;
+  }
+
   return data;
 }
 
@@ -133,4 +137,29 @@ export async function saveMenuItems(items: MenuItem[]) {
 
 export async function deleteMenuItem(id: number) {
   await supabase.from("items").delete().eq("id", id);
+}
+
+/* =========================
+   DATABASE CONNECTION CHECK
+========================= */
+
+// Test connection to Supabase (to check if the DB is connected and returning data)
+export async function testConnection() {
+  try {
+    const { data, error } = await supabase
+      .from("users")  // Replace this with any table in your database to check the connection
+      .select("*")
+      .limit(1);  // Limiting to just 1 record for a quick test
+
+    if (error) {
+      console.error("Error connecting to Supabase:", error.message);
+      return { success: false, message: error.message };
+    }
+
+    console.log("Supabase connected successfully! Data:", data);
+    return { success: true, message: "Connection successful!", data: data };
+  } catch (err) {
+    console.error("Error during connection test:", err);
+    return { success: false, message: "Unexpected error during connection test." };
+  }
 }
