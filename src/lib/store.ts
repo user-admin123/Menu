@@ -1,5 +1,5 @@
 import { Category, MenuItem, RestaurantInfo } from "./types";
-import supabase from './supabaseClient';  // Import your Supabase client
+import supabase from './supabaseClient';  // Already included in your project
 
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
@@ -7,7 +7,6 @@ const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
-// Default restaurant data
 const defaultRestaurant: RestaurantInfo = {
   name: "La Maison",
   tagline: "Fine dining, reimagined",
@@ -92,37 +91,31 @@ export function clearOrder() {
 
 // Auth
 export async function login(email: string, password: string): Promise<boolean> {
-  try {
-    // Query Supabase for the email and password
-    const { data, error } = await supabase
-      .from('test_users')
-      .select('id, email, password')
-      .eq('email', email)
-      .single(); // Expecting only one result
+  // Query the Supabase users table to fetch user data by email
+  const { data, error } = await supabase
+    .from('users')
+    .select('email, password')
+    .eq('email', email)
+    .single();  // Assumes only one result
 
-    if (error || !data) {
-      console.error("Error or user not found:", error);
-      return false; // User not found or error occurred
-    }
-
-    // Check if the password matches
-    if (data.password === password) {
-      localStorage.setItem(AUTH_KEY, "true");
-      return true; // Authentication successful
-    } else {
-      console.error("Password mismatch");
-      return false; // Password does not match
-    }
-  } catch (err) {
-    console.error("Error during login:", err);
-    return false; // Error occurred during login process
+  // Check if there's an error or the user doesn't exist
+  if (error || !data) {
+    return false;  // Email not found or error in query
   }
-}
 
+  // Check if the provided password matches the stored password
+  const isPasswordMatch = await comparePassword(password, data.password);
+  
+  if (isPasswordMatch) {
+    localStorage.setItem(AUTH_KEY, "true");
+    return true;
+  }
+  
+  return false;
+}
 export function logout() {
   localStorage.removeItem(AUTH_KEY);
 }
-
 export function isAuthenticated(): boolean {
   return localStorage.getItem(AUTH_KEY) === "true";
 }
