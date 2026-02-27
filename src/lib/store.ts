@@ -1,6 +1,4 @@
-// store.js
-
-import { Category, MenuItem, RestaurantInfo } from "./types";
+import { Category, MenuItem, RestaurantInfo, OrderItem } from "./types";
 import supabase from './supabaseClient';  // Import Supabase client setup
 
 const CATEGORIES_KEY = "qrmenu_categories";
@@ -9,35 +7,28 @@ const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
-// Default owner credentials (for fallback or testing without Supabase)
+// Default owner credentials (in your Supabase `admins` table)
 const DEFAULT_OWNER = { email: "admin@restaurant.com", password: "admin123" };
 
+// Dummy default restaurant info
 const defaultRestaurant: RestaurantInfo = {
-  name: "La Maison",
-  tagline: "Fine dining, reimagined",
-  logo_url: "",
+  name: "Default Restaurant",  // Simple name
+  tagline: "Just a simple restaurant",  // Dummy tagline
+  logo_url: "",  // No logo in default
 };
 
+// Dummy default categories (simplified)
 const defaultCategories: Category[] = [
-  { id: "cat-1", name: "Starters", order_index: 0, created_at: new Date().toISOString() },
+  { id: "cat-1", name: "Appetizers", order_index: 0, created_at: new Date().toISOString() },
   { id: "cat-2", name: "Main Course", order_index: 1, created_at: new Date().toISOString() },
-  { id: "cat-3", name: "Desserts", order_index: 2, created_at: new Date().toISOString() },
-  { id: "cat-4", name: "Drinks", order_index: 3, created_at: new Date().toISOString() },
 ];
 
+// Dummy default menu items (simplified)
 const defaultItems: MenuItem[] = [
-  { id: "item-1", name: "Bruschetta", description: "Toasted bread topped with fresh tomatoes, basil, and garlic drizzle.", price: 8.5, available: true, image_url: "https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=400&h=300&fit=crop", category_id: "cat-1", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-2", name: "Garlic Prawns", description: "Sautéed prawns in a rich garlic butter sauce with herbs.", price: 12.0, available: true, image_url: "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=400&h=300&fit=crop", category_id: "cat-1", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-3", name: "Grilled Salmon", description: "Atlantic salmon fillet grilled to perfection with lemon herb butter.", price: 24.0, available: true, image_url: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=300&fit=crop", category_id: "cat-2", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-4", name: "Wagyu Steak", description: "Premium wagyu beef steak with truffle mashed potatoes and red wine jus.", price: 42.0, available: true, image_url: "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&h=300&fit=crop", category_id: "cat-2", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-5", name: "Mushroom Risotto", description: "Creamy arborio rice with wild mushrooms and parmesan.", price: 18.0, available: false, image_url: "https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=400&h=300&fit=crop", category_id: "cat-2", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-6", name: "Tiramisu", description: "Classic Italian dessert with mascarpone, espresso, and cocoa.", price: 10.0, available: true, image_url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop", category_id: "cat-3", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-7", name: "Crème Brûlée", description: "Vanilla custard with a caramelized sugar crust.", price: 9.0, available: true, image_url: "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?w=400&h=300&fit=crop", category_id: "cat-3", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-8", name: "Espresso Martini", description: "Vodka, coffee liqueur, and fresh espresso shaken over ice.", price: 14.0, available: true, image_url: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&h=300&fit=crop", category_id: "cat-4", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-9", name: "Fresh Lemonade", description: "Hand-squeezed lemons with mint and a touch of honey.", price: 6.0, available: true, image_url: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=300&fit=crop", category_id: "cat-4", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "item-1", name: "Caesar Salad", description: "Classic Caesar Salad with fresh greens.", price: 7.5, available: true, image_url: "https://via.placeholder.com/150", category_id: "cat-1", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "item-2", name: "Grilled Chicken", description: "Juicy grilled chicken with a savory marinade.", price: 15.0, available: true, image_url: "https://via.placeholder.com/150", category_id: "cat-2", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
-// Helper functions for getting/setting restaurant, categories, and menu items
 function getOrInit<T>(key: string, defaults: T): T {
   try {
     const stored = localStorage.getItem(key);
@@ -52,38 +43,88 @@ function save<T>(key: string, data: T) {
 }
 
 // Restaurant
-export function getRestaurant(): RestaurantInfo {
-  return getOrInit(RESTAURANT_KEY, defaultRestaurant);
+export async function getRestaurant(): Promise<RestaurantInfo> {
+  const { data, error } = await supabase
+    .from('shops')
+    .select('*')
+    .single();
+
+  // If Supabase fetch fails, return the default restaurant
+  if (error || !data) {
+    return defaultRestaurant; // Return default data if error occurs
+  }
+
+  return {
+    name: data.name,
+    tagline: data.tagline,
+    logo_url: data.logo_url || '',
+  };
 }
 
-export function saveRestaurant(info: RestaurantInfo) {
-  save(RESTAURANT_KEY, info);
+export async function saveRestaurant(info: RestaurantInfo) {
+  const { error } = await supabase
+    .from('shops')
+    .upsert({
+      name: info.name,
+      tagline: info.tagline,
+      logo_url: info.logo_url,
+    });
+
+  if (error) {
+    console.error('Error saving restaurant info:', error.message);
+  }
 }
 
 // Categories
-export function getCategories(): Category[] {
-  return getOrInit(CATEGORIES_KEY, defaultCategories).sort((a, b) => a.order_index - b.order_index);
+export async function getCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('order_index', { ascending: true });
+
+  // If Supabase fetch fails, return the default categories
+  if (error || !data) {
+    return defaultCategories; // Return default categories if error occurs
+  }
+
+  return data;
 }
 
-export function saveCategories(cats: Category[]) {
-  save(CATEGORIES_KEY, cats);
+export async function saveCategories(cats: Category[]) {
+  const { error } = await supabase
+    .from('categories')
+    .upsert(cats);
+
+  if (error) {
+    console.error('Error saving categories:', error.message);
+  }
 }
 
 // Menu Items
-export function getMenuItems(): MenuItem[] {
-  return getOrInit(ITEMS_KEY, defaultItems);
+export async function getMenuItems(): Promise<MenuItem[]> {
+  const { data, error } = await supabase
+    .from('menu_items')
+    .select('*');
+
+  // If Supabase fetch fails, return the default items
+  if (error || !data) {
+    return defaultItems; // Return default items if error occurs
+  }
+
+  return data;
 }
 
-export function saveMenuItems(items: MenuItem[]) {
-  save(ITEMS_KEY, items);
+export async function saveMenuItems(items: MenuItem[]) {
+  const { error } = await supabase
+    .from('menu_items')
+    .upsert(items);
+
+  if (error) {
+    console.error('Error saving menu items:', error.message);
+  }
 }
 
 // Order
-export type OrderItem = {
-  item_id: string;
-  quantity: number;
-};
-
 export function getOrder(): OrderItem[] {
   return getOrInit(ORDER_KEY, []);
 }
@@ -96,29 +137,21 @@ export function clearOrder() {
   localStorage.removeItem(ORDER_KEY);
 }
 
-// Auth Functions
-
-// Modified login function to use Supabase for email/password validation
+// Auth
 export async function login(email: string, password: string): Promise<boolean> {
-  // Query Supabase for user validation
   const { data, error } = await supabase
-    .from('test_users')  // Table name in Supabase
+    .from('admins')
     .select('*')
     .eq('email', email)
+    .eq('password', password)
     .single();
 
-  if (error) {
-    console.error('Error fetching user from Supabase:', error);
-    return false;  // Return false if an error occurs (e.g., user not found)
+  if (error || !data) {
+    return false;
   }
 
-  // Check if the password matches
-  if (data && data.password === password) {
-    localStorage.setItem(AUTH_KEY, "true");
-    return true;  // Successful login
-  }
-
-  return false;  // Return false if email or password doesn't match
+  localStorage.setItem(AUTH_KEY, "true");
+  return true;
 }
 
 export function logout() {
