@@ -29,15 +29,19 @@ jobs:
       - name: Install supabase
         run: npm install @supabase/supabase-js
 
-      # Install bun (to resolve the 'bun not found' error)
-      - name: Install bun (to fix the issue)
+      # Install bun to resolve bun not found error
+      - name: Install bun
         run: curl -fsSL https://bun.sh/install | bash
 
-      # Update Browserslist DB using the correct command
+      # Add bun to PATH (if necessary, to make it accessible)
+      - name: Add bun to PATH
+        run: echo "$HOME/.bun/bin" >> $GITHUB_PATH
+
+      # Run the Browserslist DB update command
       - name: Update Browserslist DB
         run: npx update-browserslist-db@latest
 
-      # Commit changes if any (this will commit the updated package-lock.json, etc.)
+      # Commit changes if any
       - name: Commit changes
         run: |
           # Configure Git user
