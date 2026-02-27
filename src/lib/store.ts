@@ -1,11 +1,16 @@
+// store.js
+
 import { Category, MenuItem, RestaurantInfo } from "./types";
-import supabase from './supabaseClient';  // Already included in your project
+import supabase from './supabaseClient';  // Import Supabase client setup
 
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
 const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
+
+// Default owner credentials (for fallback or testing without Supabase)
+const DEFAULT_OWNER = { email: "admin@restaurant.com", password: "admin123" };
 
 const defaultRestaurant: RestaurantInfo = {
   name: "La Maison",
@@ -32,6 +37,7 @@ const defaultItems: MenuItem[] = [
   { id: "item-9", name: "Fresh Lemonade", description: "Hand-squeezed lemons with mint and a touch of honey.", price: 6.0, available: true, image_url: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=300&fit=crop", category_id: "cat-4", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
+// Helper functions for getting/setting restaurant, categories, and menu items
 function getOrInit<T>(key: string, defaults: T): T {
   try {
     const stored = localStorage.getItem(key);
@@ -49,6 +55,7 @@ function save<T>(key: string, data: T) {
 export function getRestaurant(): RestaurantInfo {
   return getOrInit(RESTAURANT_KEY, defaultRestaurant);
 }
+
 export function saveRestaurant(info: RestaurantInfo) {
   save(RESTAURANT_KEY, info);
 }
@@ -57,6 +64,7 @@ export function saveRestaurant(info: RestaurantInfo) {
 export function getCategories(): Category[] {
   return getOrInit(CATEGORIES_KEY, defaultCategories).sort((a, b) => a.order_index - b.order_index);
 }
+
 export function saveCategories(cats: Category[]) {
   save(CATEGORIES_KEY, cats);
 }
@@ -65,57 +73,58 @@ export function saveCategories(cats: Category[]) {
 export function getMenuItems(): MenuItem[] {
   return getOrInit(ITEMS_KEY, defaultItems);
 }
+
 export function saveMenuItems(items: MenuItem[]) {
   save(ITEMS_KEY, items);
 }
 
+// Order
 export type OrderItem = {
   item_id: string;
   quantity: number;
 };
 
-// Get current order from localStorage
 export function getOrder(): OrderItem[] {
   return getOrInit(ORDER_KEY, []);
 }
 
-// Save order to localStorage
 export function saveOrder(order: OrderItem[]) {
   localStorage.setItem(ORDER_KEY, JSON.stringify(order));
 }
 
-// Clear order (optional)
 export function clearOrder() {
   localStorage.removeItem(ORDER_KEY);
 }
 
-// Auth
+// Auth Functions
+
+// Modified login function to use Supabase for email/password validation
 export async function login(email: string, password: string): Promise<boolean> {
-  // Query the Supabase users table to fetch user data by email
+  // Query Supabase for user validation
   const { data, error } = await supabase
-    .from('users')
-    .select('email, password')
+    .from('test_users')  // Table name in Supabase
+    .select('*')
     .eq('email', email)
-    .single();  // Assumes only one result
+    .single();
 
-  // Check if there's an error or the user doesn't exist
-  if (error || !data) {
-    return false;  // Email not found or error in query
+  if (error) {
+    console.error('Error fetching user from Supabase:', error);
+    return false;  // Return false if an error occurs (e.g., user not found)
   }
 
-  // Check if the provided password matches the stored password
-  const isPasswordMatch = await comparePassword(password, data.password);
-  
-  if (isPasswordMatch) {
+  // Check if the password matches
+  if (data && data.password === password) {
     localStorage.setItem(AUTH_KEY, "true");
-    return true;
+    return true;  // Successful login
   }
-  
-  return false;
+
+  return false;  // Return false if email or password doesn't match
 }
+
 export function logout() {
   localStorage.removeItem(AUTH_KEY);
 }
+
 export function isAuthenticated(): boolean {
   return localStorage.getItem(AUTH_KEY) === "true";
 }
