@@ -1,5 +1,5 @@
 import { Category, MenuItem, RestaurantInfo } from "./types";
-import { supabase } from "./supabaseClient";
+import  supabase  from "./supabaseClient";
 
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
