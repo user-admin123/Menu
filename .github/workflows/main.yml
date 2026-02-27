@@ -9,32 +9,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Setup Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      # Install project dependencies
       - name: Install dependencies
         run: npm install
 
+      # Install Supabase client (ensure it's installed)
       - name: Install supabase
         run: npm install @supabase/supabase-js
 
-      - name: Install browserslist (alternative method)
-        run: npm install browserslist
+      # Install bun (to resolve the 'bun not found' error)
+      - name: Install bun (to fix the issue)
+        run: curl -fsSL https://bun.sh/install | bash
 
-      - name: Update Browserslist DB (alternative)
-        run: npx browserslist@latest --update-db
+      # Update Browserslist DB using the correct command
+      - name: Update Browserslist DB
+        run: npx update-browserslist-db@latest
 
+      # Commit changes if any (this will commit the updated package-lock.json, etc.)
       - name: Commit changes
         run: |
+          # Configure Git user
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add changes to git
           git add package.json package-lock.json
-          git commit -m "Add supabase dependency" || echo "No changes to commit"
+          
+          # Commit changes (if any)
+          git commit -m "Update Browserslist database and package-lock.json" || echo "No changes to commit"
+          
+          # Push the changes to the repository
           git push
