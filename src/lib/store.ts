@@ -1,5 +1,5 @@
 import { Category, MenuItem, RestaurantInfo } from "./types";
-import supabase from './supabaseClient';
+import supabase from './supabaseClient';  // Import your Supabase client
 
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
@@ -7,6 +7,7 @@ const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
+// Default restaurant data
 const defaultRestaurant: RestaurantInfo = {
   name: "La Maison",
   tagline: "Fine dining, reimagined",
@@ -49,7 +50,6 @@ function save<T>(key: string, data: T) {
 export function getRestaurant(): RestaurantInfo {
   return getOrInit(RESTAURANT_KEY, defaultRestaurant);
 }
-
 export function saveRestaurant(info: RestaurantInfo) {
   save(RESTAURANT_KEY, info);
 }
@@ -58,7 +58,6 @@ export function saveRestaurant(info: RestaurantInfo) {
 export function getCategories(): Category[] {
   return getOrInit(CATEGORIES_KEY, defaultCategories).sort((a, b) => a.order_index - b.order_index);
 }
-
 export function saveCategories(cats: Category[]) {
   save(CATEGORIES_KEY, cats);
 }
@@ -67,7 +66,6 @@ export function saveCategories(cats: Category[]) {
 export function getMenuItems(): MenuItem[] {
   return getOrInit(ITEMS_KEY, defaultItems);
 }
-
 export function saveMenuItems(items: MenuItem[]) {
   save(ITEMS_KEY, items);
 }
@@ -94,26 +92,31 @@ export function clearOrder() {
 
 // Auth
 export async function login(email: string, password: string): Promise<boolean> {
-  // Query Supabase for user validation
-  const { data, error } = await supabase
-    .from('admins')  // Query the admins table in Supabase
-    .select('*')
-    .eq('email', email)
-    .single();  // Fetch a single result (only one user per email)
+  try {
+    // Query Supabase for the email and password
+    const { data, error } = await supabase
+      .from('admins')
+      .select('id, email, password')
+      .eq('email', email)
+      .single(); // Expecting only one result
 
-  if (error || !data) {
-    console.error('Error fetching user from Supabase:', error);
-    return false;  // Return false if an error occurs or no data is found
+    if (error || !data) {
+      console.error("Error or user not found:", error);
+      return false; // User not found or error occurred
+    }
+
+    // Check if the password matches
+    if (data.password === password) {
+      localStorage.setItem(AUTH_KEY, "true");
+      return true; // Authentication successful
+    } else {
+      console.error("Password mismatch");
+      return false; // Password does not match
+    }
+  } catch (err) {
+    console.error("Error during login:", err);
+    return false; // Error occurred during login process
   }
-
-  // Check if the password matches
-  if (data.password === password) {
-    localStorage.setItem(AUTH_KEY, "true");
-    return true;  // Successful login
-  }
-
-  console.log("Incorrect password");
-  return false;  // Return false if the password doesn't match
 }
 
 export function logout() {
