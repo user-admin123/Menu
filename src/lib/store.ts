@@ -7,9 +7,6 @@ const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
-// Default owner credentials
-const DEFAULT_OWNER = { email: "admin@restaurant.com", password: "admin123" };
-
 const defaultRestaurant: RestaurantInfo = {
   name: "La Maison",
   tagline: "Fine dining, reimagined",
@@ -104,18 +101,19 @@ export async function login(email: string, password: string): Promise<boolean> {
     .eq('email', email)
     .single();  // Fetch a single result (only one user per email)
 
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching user from Supabase:', error);
-    return false;  // Return false if an error occurs (e.g., user not found)
+    return false;  // Return false if an error occurs or no data is found
   }
 
   // Check if the password matches
-  if (data && data.password === password) {
+  if (data.password === password) {
     localStorage.setItem(AUTH_KEY, "true");
     return true;  // Successful login
   }
 
-  return false;  // Return false if email or password doesn't match
+  console.log("Incorrect password");
+  return false;  // Return false if the password doesn't match
 }
 
 export function logout() {
