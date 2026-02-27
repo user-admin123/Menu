@@ -12,7 +12,7 @@ import VegBadge from "@/components/VegBadge";
 import SummaryDrawer from "@/components/SummaryDrawer";
 import { cn } from "@/lib/utils";
 // Import supabase as default
-import supabase from "@/lib/supabaseClient"; 
+import { supabase } from "@/lib/supabaseClient"; 
 
 const Index = () => {
   // --- New Connection Check Logic ---
