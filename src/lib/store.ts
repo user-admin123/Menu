@@ -94,22 +94,27 @@ export function clearOrder() {
 
 // Auth
 export async function login(email: string, password: string): Promise<boolean> {
-  // Query the test_users table for the provided email and password
+  // Query the Supabase table for the user with the matching email
   const { data, error } = await supabase
     .from('test_users')
-    .select('*')
+    .select('email, password')
     .eq('email', email)
-    .eq('password', password)  // Assuming you are storing plain passwords (not recommended for production)
-    .single();  // We expect only one record to match
+    .single(); // Assuming only one user with this email
 
+  // Handle any errors (e.g., user not found, Supabase connection error)
   if (error || !data) {
-    // If there's an error or no matching user is found
-    return false;
+    console.error("Login failed:", error);
+    return false; // No user found or error in querying
   }
 
-  // If authentication is successful, store the session or a flag to indicate the user is logged in
-  localStorage.setItem(AUTH_KEY, "true");
-  return true;
+  // Check if the password matches
+  if (data.password === password) {
+    localStorage.setItem(AUTH_KEY, "true");
+    return true;
+  }
+
+  // If password doesn't match
+  return false;
 }
 export function logout() {
   localStorage.removeItem(AUTH_KEY);
