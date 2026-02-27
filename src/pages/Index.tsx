@@ -11,6 +11,7 @@ import { MenuItem, ItemType } from "@/lib/types";
 import VegBadge from "@/components/VegBadge";
 import SummaryDrawer from "@/components/SummaryDrawer";
 import { cn } from "@/lib/utils";
+import { testConnection } from "@/lib/store";  // Import the testConnection function from your store
 
 const Index = () => {
   const {
@@ -28,6 +29,7 @@ const Index = () => {
   const [activeCat, setActiveCat] = useState(categories[0]?.id || "");
   const [showLogin, setShowLogin] = useState(false);
   const [vegFilter, setVegFilter] = useState<ItemType | "all">("all");
+  const [dbStatus, setDbStatus] = useState<string>("loading"); // New state for DB status
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -105,39 +107,57 @@ const Index = () => {
   }, []);
 
   const scrollToMenuItem = useCallback((item: MenuItem) => {
-  const el = cardRefs.current[item.id];
-  if (!el) return;
+    const el = cardRefs.current[item.id];
+    if (!el) return;
 
-  isManualScroll.current = true;
+    isManualScroll.current = true;
 
-  // Scroll to the menu item
-  el.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-  });
+    // Scroll to the menu item
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
 
-  // Highlight the card temporarily
-  el.classList.add("border-primary", "shadow-primary");
-  setTimeout(() => el.classList.remove("border-primary", "shadow-primary"), 2000);
+    // Highlight the card temporarily
+    el.classList.add("border-primary", "shadow-primary");
+    setTimeout(() => el.classList.remove("border-primary", "shadow-primary"), 2000);
 
-  // 🔹 Update active category immediately
-  setActiveCat(item.category_id);
+    // 🔹 Update active category immediately
+    setActiveCat(item.category_id);
 
-  // Reset manual scroll flag after animation
-  setTimeout(() => {
-    isManualScroll.current = false;
-  }, 1000);
-}, []);
+    // Reset manual scroll flag after animation
+    setTimeout(() => {
+      isManualScroll.current = false;
+    }, 1000);
+  }, []);
 
   const allVisibleItems = useMemo(
     () => visibleCategories.flatMap((cat) => getItemsForCategory(cat.id)),
     [visibleCategories, getItemsForCategory]
   );
 
+  // Test connection on component mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      const connectionResult = await testConnection();
+      if (connectionResult.success) {
+        setDbStatus("connected");
+      } else {
+        setDbStatus("failed");
+      }
+    };
+
+    checkConnection();
+  }, []); // Empty dependency array to run only on mount
+
   return (
     <OrderProvider>
       <div className="min-h-screen bg-background">
         <div className="relative z-10 max-w-lg mx-auto pb-12">
+          {/* Database status check */}
+          {dbStatus === "loading" && <div>Loading... Checking database connection...</div>}
+          {dbStatus === "failed" && <div>Error: Could not connect to the database. Please try again later.</div>}
+
           {/* Admin/Login */}
           {authed ? (
             <AdminPanel
