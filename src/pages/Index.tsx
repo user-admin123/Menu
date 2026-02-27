@@ -22,18 +22,24 @@ const Index = () => {
   });
 
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        // Simple query to check if we can reach the table
-        const { error } = await supabase.from("test_users").select("id").limit(1);
-        if (error) throw error;
-        setDbStatus({ loading: false, error: null });
-      } catch (err: any) {
-        setDbStatus({ loading: false, error: err.message || "Database connection failed" });
+  const checkConnection = async () => {
+    try {
+      // Check if the client even exists
+      if (!supabase) {
+        throw new Error("Supabase client not initialized. Check your imports.");
       }
-    };
-    checkConnection();
-  }, []);
+
+      const { error } = await supabase.from("test_users").select("id").limit(1);
+      
+      if (error) throw error;
+      setDbStatus({ loading: false, error: null });
+    } catch (err) {
+      console.error("Connection error:", err);
+      setDbStatus({ loading: false, error: err.message });
+    }
+  };
+  checkConnection();
+}, []);
   // ----------------------------------
 
   const {
