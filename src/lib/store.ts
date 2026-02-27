@@ -1,4 +1,5 @@
 import { Category, MenuItem, RestaurantInfo } from "./types";
+import { supabase } from "./supabaseClient";
 
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
@@ -92,12 +93,23 @@ export function clearOrder() {
 }
 
 // Auth
-export function login(email: string, password: string): boolean {
-  if (email === DEFAULT_OWNER.email && password === DEFAULT_OWNER.password) {
-    localStorage.setItem(AUTH_KEY, "true");
-    return true;
+export async function login(email: string, password: string): Promise<boolean> {
+  // Query the test_users table for the provided email and password
+  const { data, error } = await supabase
+    .from('test_users')
+    .select('*')
+    .eq('email', email)
+    .eq('password', password)  // Assuming you are storing plain passwords (not recommended for production)
+    .single();  // We expect only one record to match
+
+  if (error || !data) {
+    // If there's an error or no matching user is found
+    return false;
   }
-  return false;
+
+  // If authentication is successful, store the session or a flag to indicate the user is logged in
+  localStorage.setItem(AUTH_KEY, "true");
+  return true;
 }
 export function logout() {
   localStorage.removeItem(AUTH_KEY);
