@@ -12,9 +12,12 @@ import VegBadge from "@/components/VegBadge";
 import SummaryDrawer from "@/components/SummaryDrawer";
 import { cn } from "@/lib/utils";
 // Import supabase as default
-import { supabase } from "@/lib/supabaseClient"; 
+import { supabase } from "../lib/supabaseClient"; 
+
+console.log("DEBUG: Index.tsx has loaded");
 
 const Index = () => {
+  console.log("DEBUG: Index component is rendering");
   // --- New Connection Check Logic ---
   const [dbStatus, setDbStatus] = useState<{ loading: boolean; error: string | null }>({
     loading: true,
