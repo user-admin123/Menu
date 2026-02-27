@@ -4,27 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
 
     <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
     <script>
-      // Initialize vConsole immediately
       window.vConsole = new window.VConsole();
     </script>
 
-    <meta property="og:title" content="Lovable App" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <script>
+      window.onerror = function (msg, url, line, col, error) {
+        console.log("❌ CRITICAL ERROR:", msg, "\nURL:", url, "\nLine:", line);
+        return false;
+      };
+      window.onunhandledrejection = function (event) {
+        console.log("❌ ASYNC PROMISE ERROR:", event.reason);
+      };
+    </script>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:title" content="Lovable App" />
   </head>
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+
+    <script type="module" crossorigin src="/src/main.tsx"></script>
   </body>
 </html>
