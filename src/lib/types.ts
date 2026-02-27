@@ -1,12 +1,26 @@
-export interface User {
-  id: number;
-  email: string;
-  password: string;
+export interface Category {
+  id: string;
+  name: string;
+  order_index: number;
+  created_at: string;
+}
+
+export type ItemType = "veg" | "nonveg";
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  available: boolean;
+  image_url: string;
+  category_id: string;
+  item_type: ItemType;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface RestaurantInfo {
-  id: number;
-  owner_id: number;
   name: string;
   tagline: string;
   logo_url: string;
@@ -14,25 +28,4 @@ export interface RestaurantInfo {
   show_sold_out?: boolean;
   show_search?: boolean;
   show_qr_logo?: boolean;
-}
-
-export interface Category {
-  id: number;
-  restaurant_id: number;
-  name: string;
-  position: number;
-}
-
-export type ItemType = "veg" | "nonveg";
-
-export interface MenuItem {
-  id: number;
-  category_id: number;
-  name: string;
-  description: string;
-  price: number;
-  available: boolean;
-  image_url: string;
-  item_type: ItemType;
-  position: number;
 }
