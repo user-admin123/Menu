@@ -95,7 +95,7 @@ export async function login(email: string, password: string): Promise<boolean> {
   try {
     // Query Supabase for the email and password
     const { data, error } = await supabase
-      .from('admins')
+      .from('test_users')
       .select('id, email, password')
       .eq('email', email)
       .single(); // Expecting only one result
