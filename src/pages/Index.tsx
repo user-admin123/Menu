@@ -11,8 +11,31 @@ import { MenuItem, ItemType } from "@/lib/types";
 import VegBadge from "@/components/VegBadge";
 import SummaryDrawer from "@/components/SummaryDrawer";
 import { cn } from "@/lib/utils";
+// Import supabase as default
+import supabase from "@/lib/supabaseClient"; 
 
 const Index = () => {
+  // --- New Connection Check Logic ---
+  const [dbStatus, setDbStatus] = useState<{ loading: boolean; error: string | null }>({
+    loading: true,
+    error: null,
+  });
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        // Simple query to check if we can reach the table
+        const { error } = await supabase.from("test_users").select("id").limit(1);
+        if (error) throw error;
+        setDbStatus({ loading: false, error: null });
+      } catch (err: any) {
+        setDbStatus({ loading: false, error: err.message || "Database connection failed" });
+      }
+    };
+    checkConnection();
+  }, []);
+  // ----------------------------------
+
   const {
     categories,
     items,
@@ -64,12 +87,11 @@ const Index = () => {
     }
   }, [visibleCategories, activeCat]);
 
-  // Scroll logic for category highlight
   useEffect(() => {
     const handleScroll = () => {
       if (isManualScroll.current) return;
 
-      const offset = 140; // header + tabs
+      const offset = 140; 
       let currentId = "";
 
       visibleCategories.forEach((cat) => {
@@ -105,29 +127,25 @@ const Index = () => {
   }, []);
 
   const scrollToMenuItem = useCallback((item: MenuItem) => {
-  const el = cardRefs.current[item.id];
-  if (!el) return;
+    const el = cardRefs.current[item.id];
+    if (!el) return;
 
-  isManualScroll.current = true;
+    isManualScroll.current = true;
 
-  // Scroll to the menu item
-  el.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-  });
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
 
-  // Highlight the card temporarily
-  el.classList.add("border-primary", "shadow-primary");
-  setTimeout(() => el.classList.remove("border-primary", "shadow-primary"), 2000);
+    el.classList.add("border-primary", "shadow-primary");
+    setTimeout(() => el.classList.remove("border-primary", "shadow-primary"), 2000);
 
-  // 🔹 Update active category immediately
-  setActiveCat(item.category_id);
+    setActiveCat(item.category_id);
 
-  // Reset manual scroll flag after animation
-  setTimeout(() => {
-    isManualScroll.current = false;
-  }, 1000);
-}, []);
+    setTimeout(() => {
+      isManualScroll.current = false;
+    }, 1000);
+  }, []);
 
   const allVisibleItems = useMemo(
     () => visibleCategories.flatMap((cat) => getItemsForCategory(cat.id)),
@@ -136,9 +154,21 @@ const Index = () => {
 
   return (
     <OrderProvider>
-      <div className="min-h-screen bg-background">
+      {/* DB Connection UI - Fixed to top */}
+      <div className="fixed top-0 left-0 w-full z-[100] pointer-events-none">
+        {dbStatus.error ? (
+          <div className="bg-destructive text-destructive-foreground px-4 py-1 text-center text-[10px] font-bold animate-pulse pointer-events-auto">
+            ⚠️ DB ERROR: {dbStatus.error}
+          </div>
+        ) : !dbStatus.loading ? (
+          <div className="bg-green-500/20 text-green-500 px-4 py-0.5 text-center text-[9px] font-medium opacity-30 hover:opacity-100 transition-opacity">
+            Connected to Supabase
+          </div>
+        ) : null}
+      </div>
+
+      <div className="min-h-screen bg-background pt-4">
         <div className="relative z-10 max-w-lg mx-auto pb-12">
-          {/* Admin/Login */}
           {authed ? (
             <AdminPanel
               categories={categories}
@@ -153,13 +183,10 @@ const Index = () => {
             showLogin && <LoginModal onLogin={login} />
           )}
 
-          {/* Header */}
           <RestaurantHeader restaurant={restaurant} onAdminClick={handleAdminTrigger} />
 
-          {/* Search */}
           {restaurant.show_search && <SearchBar items={allVisibleItems} onSelect={scrollToMenuItem} />}
 
-          {/* Veg Filter (white text + background for active) */}
           {restaurant.show_veg_filter && (
             <div className="flex gap-2 px-4 py-2 justify-center">
               {(["all", "veg", "nonveg"] as const).map((type) => (
@@ -182,7 +209,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Category Tabs */}
           {visibleCategories.length > 0 && (
             <CategoryTabs
               categories={visibleCategories}
@@ -191,7 +217,6 @@ const Index = () => {
             />
           )}
 
-          {/* Menu Sections */}
           <main className="px-4 mt-4 space-y-8">
             {visibleCategories.map((cat) => {
               const catItems = getItemsForCategory(cat.id);
