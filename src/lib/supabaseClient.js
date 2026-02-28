@@ -1,13 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-// DO NOT LEAVE THIS IN PRODUCTION
 const supabaseUrl = "https://yvfttuolxenvbsztdkwh.supabase.co"; 
 const supabaseKey = "sb_publishable_o93bbwsBvnHfdzqWPQHAtw_V6J5JShb";
 
-// ADD THIS LOG:
-console.log("LOG 1: Supabase Client initializing with:", { 
-  url: supabaseUrl ? "Found" : "MISSING", 
-  key: supabaseKey ? "Found" : "MISSING" 
+console.log("LOG 1: Supabase Config Check", { 
+  urlPrefix: supabaseUrl?.slice(0, 10), 
+  keyLength: supabaseKey?.length 
 });
 
+if (!supabaseUrl || !supabaseKey) {
+  console.error("LOG: Supabase credentials missing!");
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Log the actual client object to see internal headers
+console.log("LOG 2: Supabase Client Instance Created", {
+  authUrl: (supabase as any).authUrl,
+  headers: (supabase as any).rest.headers
+});
