@@ -16,6 +16,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Log the actual client object to see internal headers
 console.log("LOG 2: Supabase Client Instance Created", {
-  authUrl: (supabase as any).authUrl,
-  headers: (supabase as any).rest.headers
+  authUrl: supabase.authUrl,
+  headers: supabase.rest.headers
 });
