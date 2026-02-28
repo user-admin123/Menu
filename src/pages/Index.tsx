@@ -11,37 +11,29 @@ import { MenuItem, ItemType } from "@/lib/types";
 import VegBadge from "@/components/VegBadge";
 import SummaryDrawer from "@/components/SummaryDrawer";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabaseClient"; 
-
-console.log("LOG: Index.tsx file loaded");
 
 const Index = () => {
-  console.log("LOG: Index Component Rendering Started");
-
-  // --- Connection Status State ---
-  const [dbStatus, setDbStatus] = useState<{ loading: boolean; error: string | null }>({
-    loading: true,
-    error: null,
-  });
-
-  // --- Menu Data Hook ---
-  // We use "|| {}" to prevent crashing if useMenuData returns null/undefined
-  const menuData = useMenuData();
   const {
-    categories = [],
-    items = [],
-    restaurant = { name: "Restaurant", show_sold_out: true },
-    authed = false,
-    login = () => {},
-    logout = () => {},
-    updateCategories = () => {},
-    updateItems = () => {},
-    updateRestaurant = () => {},
-  } = menuData || {};
+    categories,
+    items,
+    restaurant,
+    authed,
+    loading, // 🔹 Added loading
+    login,
+    logout,
+    onUpdateAll // 🔹 Unified update function
+  } = useMenuData();
 
-  // --- UI States ---
-  // FIX: Initialize with "" to prevent categories[0] undefined crash
-  const [activeCat, setActiveCat] = useState("");
+  // 🔹 LOADING GUARD: Prevents crashes on categories[0]
+  if (loading || !restaurant) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const [activeCat, setActiveCat] = useState(categories[0]?.id || "");
   const [showLogin, setShowLogin] = useState(false);
   const [vegFilter, setVegFilter] = useState<ItemType | "all">("all");
 
@@ -49,59 +41,6 @@ const Index = () => {
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const isManualScroll = useRef(false);
 
-  // --- 1. Connection Check Effect ---
-useEffect(() => {
-  const checkConnection = async () => {
-    console.log("LOG 3: Starting Connection Test...");
-    
-    try {
-      // Log the exact URL the client is trying to reach
-      const targetUrl = `${(supabase as any).supabaseUrl}/rest/v1/app_user`;
-      console.log("LOG 4: Attempting to ping:", targetUrl);
-
-      const { data, error, status, statusText } = await supabase
-        .from("app_user")
-        .select("*", { count: 'exact', head: true });
-
-      if (error) {
-        console.error("LOG 5: Supabase responded with an error:", {
-          code: error.code,
-          message: error.message,
-          hint: error.hint
-        });
-        throw error;
-      }
-
-      console.log("LOG 6: Success! Status:", status, "Data:", data);
-      setDbStatus({ loading: false, error: null });
-
-    } catch (err: any) {
-      // This is the critical log for status 0
-      console.error("LOG 7: Network/Fetch Catch:", {
-        message: err.message,
-        stack: err.stack,
-        isTypeError: err instanceof TypeError
-      });
-
-      setDbStatus({ 
-        loading: false, 
-        error: err.message || "Network Error: Check if Supabase URL is correct." 
-      });
-    }
-  };
-
-  checkConnection();
-}, []);
-
-  // --- 2. Set Active Category when data loads ---
-  useEffect(() => {
-    if (categories.length > 0 && !activeCat) {
-      console.log("LOG: Setting initial active category:", categories[0].id);
-      setActiveCat(categories[0].id);
-    }
-  }, [categories, activeCat]);
-
-  // --- Helper Functions ---
   const handleAdminTrigger = () => setShowLogin(true);
   const handleLogout = () => {
     logout();
@@ -113,28 +52,41 @@ useEffect(() => {
       items
         .filter((i) => i.category_id === catId)
         .filter((i) => vegFilter === "all" || i.item_type === vegFilter)
-        .filter((i) => restaurant?.show_sold_out !== false || i.available)
-        .sort((a, b) => (a.available === b.available ? 0 : a.available ? -1 : 1)),
-    [items, vegFilter, restaurant?.show_sold_out]
+        .filter((i) => restaurant.show_sold_out !== false || i.available)
+        .sort((a, b) =>
+          a.available === b.available ? 0 : a.available ? -1 : 1
+        ),
+    [items, vegFilter, restaurant.show_sold_out]
   );
 
-  const visibleCategories = useMemo(() => 
-    categories.filter((cat) => getItemsForCategory(cat.id).length > 0),
-    [categories, getItemsForCategory]
+  const visibleCategories = categories.filter(
+    (cat) => getItemsForCategory(cat.id).length > 0
   );
 
-  // --- Scroll Logic ---
+  useEffect(() => {
+    if (
+      visibleCategories.length > 0 &&
+      !visibleCategories.find((c) => c.id === activeCat)
+    ) {
+      setActiveCat(visibleCategories[0].id);
+    }
+  }, [visibleCategories, activeCat]);
+
+  // Scroll logic for category highlight
   useEffect(() => {
     const handleScroll = () => {
       if (isManualScroll.current) return;
-      const offset = 140; 
+
+      const offset = 140; // header + tabs
       let currentId = "";
 
       visibleCategories.forEach((cat) => {
         const el = sectionRefs.current[cat.id];
         if (!el) return;
+
         const rect = el.getBoundingClientRect();
         if (rect.top - offset <= 0) currentId = cat.id;
+        if (rect.bottom <= window.innerHeight) currentId = cat.id;
       });
 
       if (currentId && currentId !== activeCat) {
@@ -143,80 +95,77 @@ useEffect(() => {
     };
 
     window.addEventListener("scroll", handleScroll);
+    handleScroll();
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, [visibleCategories, activeCat]);
 
   const scrollToCategory = useCallback((id: string) => {
     isManualScroll.current = true;
-    sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    sectionRefs.current[id]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
     setActiveCat(id);
-    setTimeout(() => { isManualScroll.current = false; }, 1000);
+    setTimeout(() => {
+      isManualScroll.current = false;
+    }, 1000);
   }, []);
 
   const scrollToMenuItem = useCallback((item: MenuItem) => {
-    const el = cardRefs.current[item.id];
-    if (!el) return;
-    isManualScroll.current = true;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("border-primary", "shadow-primary");
-    setTimeout(() => el.classList.remove("border-primary", "shadow-primary"), 2000);
-    setActiveCat(item.category_id);
-    setTimeout(() => { isManualScroll.current = false; }, 1000);
-  }, []);
+  const el = cardRefs.current[item.id];
+  if (!el) return;
+
+  isManualScroll.current = true;
+
+  // Scroll to the menu item
+  el.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+
+  // Highlight the card temporarily
+  el.classList.add("border-primary", "shadow-primary");
+  setTimeout(() => el.classList.remove("border-primary", "shadow-primary"), 2000);
+
+  // 🔹 Update active category immediately
+  setActiveCat(item.category_id);
+
+  // Reset manual scroll flag after animation
+  setTimeout(() => {
+    isManualScroll.current = false;
+  }, 1000);
+}, []);
 
   const allVisibleItems = useMemo(
     () => visibleCategories.flatMap((cat) => getItemsForCategory(cat.id)),
     [visibleCategories, getItemsForCategory]
   );
 
-  // --- RENDER LOGIC ---
-  
-  // 1. Show a loading screen instead of black if checking DB
-  if (dbStatus.loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-sm font-mono">Connecting to Supabase...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <OrderProvider>
-      {/* DB Status Banner */}
-      <div className="fixed top-0 left-0 w-full z-[100] pointer-events-none">
-        {dbStatus.error && (
-          <div className="bg-destructive text-destructive-foreground px-4 py-1 text-center text-[10px] font-bold pointer-events-auto">
-            ⚠️ CONNECTION ERROR: {dbStatus.error}
-          </div>
-        )}
-      </div>
-
-      <div className="min-h-screen bg-background pt-4">
+      <div className="min-h-screen bg-background">
         <div className="relative z-10 max-w-lg mx-auto pb-12">
           {authed ? (
             <AdminPanel
               categories={categories}
               items={items}
               restaurant={restaurant}
-              onUpdateCategories={updateCategories}
-              onUpdateItems={updateItems}
-              onUpdateRestaurant={updateRestaurant}
+              onUpdate={onUpdateAll} // 🔹 Pass unified sync
               onLogout={handleLogout}
             />
           ) : (
             showLogin && <LoginModal onLogin={login} />
           )}
-
+          
+          {/* Header */}
           <RestaurantHeader restaurant={restaurant} onAdminClick={handleAdminTrigger} />
 
-          {restaurant?.show_search && (
-            <SearchBar items={allVisibleItems} onSelect={scrollToMenuItem} />
-          )}
+          {/* Search */}
+          {restaurant.show_search && <SearchBar items={allVisibleItems} onSelect={scrollToMenuItem} />}
 
-          {restaurant?.show_veg_filter && (
+          {/* Veg Filter (white text + background for active) */}
+          {restaurant.show_veg_filter && (
             <div className="flex gap-2 px-4 py-2 justify-center">
               {(["all", "veg", "nonveg"] as const).map((type) => (
                 <button
@@ -226,20 +175,19 @@ useEffect(() => {
                     "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all border",
                     vegFilter === type
                       ? "bg-primary text-white border-primary"
-                      : "bg-transparent text-white border-border/30"
+                      : "bg-transparent text-white border-border/30 hover:text-white"
                   )}
                 >
-                  {type === "all" ? "All" : (
-                    <>
-                      <VegBadge type={type} size="sm" />
-                      {type === "veg" ? "Veg" : "Non-Veg"}
-                    </>
-                  )}
+                  {type === "all" ? "All" : <>
+                    <VegBadge type={type} size="sm" />
+                    {type === "veg" ? "Veg" : "Non-Veg"}
+                  </>}
                 </button>
               ))}
             </div>
           )}
 
+          {/* Category Tabs */}
           {visibleCategories.length > 0 && (
             <CategoryTabs
               categories={visibleCategories}
@@ -248,29 +196,16 @@ useEffect(() => {
             />
           )}
 
+          {/* Menu Sections */}
           <main className="px-4 mt-4 space-y-8">
-            {visibleCategories.length === 0 && !dbStatus.loading && (
-              <p className="text-center text-muted-foreground py-10">No items available.</p>
-            )}
-            
             {visibleCategories.map((cat) => {
               const catItems = getItemsForCategory(cat.id);
               return (
-                <section 
-                  key={cat.id} 
-                  ref={(el) => (sectionRefs.current[cat.id] = el)} 
-                  className="scroll-mt-20"
-                >
-                  <h2 className="text-xl font-bold text-foreground mb-3 tracking-tight">
-                    {cat.name}
-                  </h2>
+                <section key={cat.id} ref={(el) => (sectionRefs.current[cat.id] = el)} className="scroll-mt-20">
+                  <h2 className="text-xl font-bold text-foreground mb-3 tracking-tight">{cat.name}</h2>
                   <div className="space-y-3">
                     {catItems.map((item) => (
-                      <MenuItemCard 
-                        key={item.id} 
-                        item={item} 
-                        ref={(el) => (cardRefs.current[item.id] = el)} 
-                      />
+                      <MenuItemCard key={item.id} item={item} ref={(el) => (cardRefs.current[item.id] = el)} />
                     ))}
                   </div>
                 </section>
