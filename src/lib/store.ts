@@ -1,14 +1,20 @@
 import { Category, MenuItem, RestaurantInfo } from "./types";
+import { supabase } from "./supabaseClient";
 
+// --- KEYS ---
 const CATEGORIES_KEY = "qrmenu_categories";
 const ITEMS_KEY = "qrmenu_items";
 const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
-// Default owner credentials
-const DEFAULT_OWNER = { email: "admin@restaurant.com", password: "admin123" };
+// --- TYPES ---
+export type OrderItem = {
+  item_id: string;
+  quantity: number;
+};
 
+// --- DEFAULT VALUES (Maintained) ---
 const defaultRestaurant: RestaurantInfo = {
   name: "La Maison",
   tagline: "Fine dining, reimagined",
@@ -34,6 +40,7 @@ const defaultItems: MenuItem[] = [
   { id: "item-9", name: "Fresh Lemonade", description: "Hand-squeezed lemons with mint and a touch of honey.", price: 6.0, available: true, image_url: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=300&fit=crop", category_id: "cat-4", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
+// --- CORE HELPERS ---
 function getOrInit<T>(key: string, defaults: T): T {
   try {
     const stored = localStorage.getItem(key);
@@ -47,7 +54,7 @@ function save<T>(key: string, data: T) {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
-// Restaurant
+// --- RESTAURANT FUNCTIONS ---
 export function getRestaurant(): RestaurantInfo {
   return getOrInit(RESTAURANT_KEY, defaultRestaurant);
 }
@@ -55,7 +62,7 @@ export function saveRestaurant(info: RestaurantInfo) {
   save(RESTAURANT_KEY, info);
 }
 
-// Categories
+// --- CATEGORIES FUNCTIONS ---
 export function getCategories(): Category[] {
   return getOrInit(CATEGORIES_KEY, defaultCategories).sort((a, b) => a.order_index - b.order_index);
 }
@@ -63,7 +70,7 @@ export function saveCategories(cats: Category[]) {
   save(CATEGORIES_KEY, cats);
 }
 
-// Menu Items
+// --- MENU ITEMS FUNCTIONS ---
 export function getMenuItems(): MenuItem[] {
   return getOrInit(ITEMS_KEY, defaultItems);
 }
@@ -71,37 +78,42 @@ export function saveMenuItems(items: MenuItem[]) {
   save(ITEMS_KEY, items);
 }
 
-export type OrderItem = {
-  item_id: string;
-  quantity: number;
-};
-
-// Get current order from localStorage
+// --- ORDER FUNCTIONS ---
 export function getOrder(): OrderItem[] {
   return getOrInit(ORDER_KEY, []);
 }
-
-// Save order to localStorage
 export function saveOrder(order: OrderItem[]) {
   localStorage.setItem(ORDER_KEY, JSON.stringify(order));
 }
-
-// Clear order (optional)
 export function clearOrder() {
   localStorage.removeItem(ORDER_KEY);
 }
 
-// Auth
-export function login(email: string, password: string): boolean {
-  if (email === DEFAULT_OWNER.email && password === DEFAULT_OWNER.password) {
-    localStorage.setItem(AUTH_KEY, "true");
-    return true;
+// --- AUTH FUNCTIONS (THE NEW SUPABASE LOGIC) ---
+export async function login(email: string, password: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('owners')
+      .select('*')
+      .eq('email', email)
+      .eq('password', password)
+      .single();
+
+    if (data && !error) {
+      localStorage.setItem(AUTH_KEY, "true");
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("Auth error:", err);
+    return false;
   }
-  return false;
 }
+
 export function logout() {
   localStorage.removeItem(AUTH_KEY);
 }
+
 export function isAuthenticated(): boolean {
   return localStorage.getItem(AUTH_KEY) === "true";
 }
