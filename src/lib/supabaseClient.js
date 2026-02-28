@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = "https://mzcghpawrcudgakhhnpp.supabase.co"; 
-const supabaseKey = "sb_publishable_BpSLXTYOsYH4gFCcF9slfg_OnSwx8jzwIjoyMDg3NzgxODU0fQ.-K8XOYd8N7yWeHo1zoi8sZ8QqVldKyR-71sfoFP47zo";
+const supabaseKey = "sb_publishable_BpSLXTYOsYH4gFCcF9slfg_OnSwx8jz";
 
 console.log("LOG 1: Supabase Config Check", { 
   urlPrefix: supabaseUrl?.slice(0, 10), 
