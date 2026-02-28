@@ -1,119 +1,52 @@
-import { Category, MenuItem, RestaurantInfo } from "./types";
 import { supabase } from "./supabaseClient";
+import { Category, MenuItem, RestaurantInfo } from "./types";
 
-// --- KEYS ---
-const CATEGORIES_KEY = "qrmenu_categories";
-const ITEMS_KEY = "qrmenu_items";
-const RESTAURANT_KEY = "qrmenu_restaurant";
 const AUTH_KEY = "qrmenu_auth";
 const ORDER_KEY = "qrmenu_order";
 
-// --- TYPES ---
-export type OrderItem = {
-  item_id: string;
-  quantity: number;
+// --- ORDER LOGIC (STAYS LOCAL STORAGE) ---
+export const getOrder = () => JSON.parse(localStorage.getItem(ORDER_KEY) || "[]");
+export const saveOrder = (order: any[]) => localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+export const clearOrder = () => localStorage.removeItem(ORDER_KEY);
+
+// --- SUPABASE LOGIC (ASYNC) ---
+
+export const getRestaurant = async (): Promise<RestaurantInfo> => {
+  const { data } = await supabase.from("restaurant_info").select("*").single();
+  return data || { name: "La Maison", tagline: "Fine dining", logo_url: "" };
 };
 
-// --- DEFAULT VALUES (Maintained) ---
-const defaultRestaurant: RestaurantInfo = {
-  name: "La Maison",
-  tagline: "Fine dining, reimagined",
-  logo_url: "",
+export const getCategories = async (): Promise<Category[]> => {
+  const { data } = await supabase.from("categories").select("*").order("order_index");
+  return data || [];
 };
 
-const defaultCategories: Category[] = [
-  { id: "cat-1", name: "Starters", order_index: 0, created_at: new Date().toISOString() },
-  { id: "cat-2", name: "Main Course", order_index: 1, created_at: new Date().toISOString() },
-  { id: "cat-3", name: "Desserts", order_index: 2, created_at: new Date().toISOString() },
-  { id: "cat-4", name: "Drinks", order_index: 3, created_at: new Date().toISOString() },
-];
+export const getMenuItems = async (): Promise<MenuItem[]> => {
+  const { data } = await supabase.from("menu_items").select("*");
+  return data || [];
+};
 
-const defaultItems: MenuItem[] = [
-  { id: "item-1", name: "Bruschetta", description: "Toasted bread topped with fresh tomatoes, basil, and garlic drizzle.", price: 8.5, available: true, image_url: "https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=400&h=300&fit=crop", category_id: "cat-1", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-2", name: "Garlic Prawns", description: "Sautéed prawns in a rich garlic butter sauce with herbs.", price: 12.0, available: true, image_url: "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=400&h=300&fit=crop", category_id: "cat-1", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-3", name: "Grilled Salmon", description: "Atlantic salmon fillet grilled to perfection with lemon herb butter.", price: 24.0, available: true, image_url: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=300&fit=crop", category_id: "cat-2", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-4", name: "Wagyu Steak", description: "Premium wagyu beef steak with truffle mashed potatoes and red wine jus.", price: 42.0, available: true, image_url: "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&h=300&fit=crop", category_id: "cat-2", item_type: "nonveg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-5", name: "Mushroom Risotto", description: "Creamy arborio rice with wild mushrooms and parmesan.", price: 18.0, available: false, image_url: "https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=400&h=300&fit=crop", category_id: "cat-2", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-6", name: "Tiramisu", description: "Classic Italian dessert with mascarpone, espresso, and cocoa.", price: 10.0, available: true, image_url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop", category_id: "cat-3", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-7", name: "Crème Brûlée", description: "Vanilla custard with a caramelized sugar crust.", price: 9.0, available: true, image_url: "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?w=400&h=300&fit=crop", category_id: "cat-3", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-8", name: "Espresso Martini", description: "Vodka, coffee liqueur, and fresh espresso shaken over ice.", price: 14.0, available: true, image_url: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&h=300&fit=crop", category_id: "cat-4", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: "item-9", name: "Fresh Lemonade", description: "Hand-squeezed lemons with mint and a touch of honey.", price: 6.0, available: true, image_url: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=300&fit=crop", category_id: "cat-4", item_type: "veg", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
+export const syncAllData = async (
+  res: RestaurantInfo,
+  cats: Category[],
+  its: MenuItem[],
+  deletions: { cats: string[], items: string[] }
+) => {
+  if (deletions.items.length) await supabase.from("menu_items").delete().in("id", deletions.items);
+  if (deletions.cats.length) await supabase.from("categories").delete().in("id", deletions.cats);
 
-// --- CORE HELPERS ---
-function getOrInit<T>(key: string, defaults: T): T {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  localStorage.setItem(key, JSON.stringify(defaults));
-  return defaults;
-}
+  await Promise.all([
+    supabase.from("restaurant_info").upsert([{ id: 1, ...res }]),
+    supabase.from("categories").upsert(cats),
+    supabase.from("menu_items").upsert(its)
+  ]);
+};
 
-function save<T>(key: string, data: T) {
-  localStorage.setItem(key, JSON.stringify(data));
-}
+export const login = async (email: string, pass: string): Promise<boolean> => {
+  const { data } = await supabase.from("admin_users").select("*").eq("email", email).eq("password", pass).single();
+  if (data) localStorage.setItem(AUTH_KEY, "true");
+  return !!data;
+};
 
-// --- RESTAURANT FUNCTIONS ---
-export function getRestaurant(): RestaurantInfo {
-  return getOrInit(RESTAURANT_KEY, defaultRestaurant);
-}
-export function saveRestaurant(info: RestaurantInfo) {
-  save(RESTAURANT_KEY, info);
-}
-
-// --- CATEGORIES FUNCTIONS ---
-export function getCategories(): Category[] {
-  return getOrInit(CATEGORIES_KEY, defaultCategories).sort((a, b) => a.order_index - b.order_index);
-}
-export function saveCategories(cats: Category[]) {
-  save(CATEGORIES_KEY, cats);
-}
-
-// --- MENU ITEMS FUNCTIONS ---
-export function getMenuItems(): MenuItem[] {
-  return getOrInit(ITEMS_KEY, defaultItems);
-}
-export function saveMenuItems(items: MenuItem[]) {
-  save(ITEMS_KEY, items);
-}
-
-// --- ORDER FUNCTIONS ---
-export function getOrder(): OrderItem[] {
-  return getOrInit(ORDER_KEY, []);
-}
-export function saveOrder(order: OrderItem[]) {
-  localStorage.setItem(ORDER_KEY, JSON.stringify(order));
-}
-export function clearOrder() {
-  localStorage.removeItem(ORDER_KEY);
-}
-
-// --- AUTH FUNCTIONS (THE NEW SUPABASE LOGIC) ---
-export async function login(email: string, password: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from('owners')
-      .select('*')
-      .eq('email', email)
-      .eq('password', password)
-      .single();
-
-    if (data && !error) {
-      localStorage.setItem(AUTH_KEY, "true");
-      return true;
-    }
-    return false;
-  } catch (err) {
-    console.error("Auth error:", err);
-    return false;
-  }
-}
-
-export function logout() {
-  localStorage.removeItem(AUTH_KEY);
-}
-
-export function isAuthenticated(): boolean {
-  return localStorage.getItem(AUTH_KEY) === "true";
-}
+export const logout = () => localStorage.removeItem(AUTH_KEY);
+export const isAuthenticated = () => localStorage.getItem(AUTH_KEY) === "true";
