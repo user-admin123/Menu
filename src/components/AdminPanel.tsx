@@ -18,9 +18,12 @@ interface Props {
   categories: Category[];
   items: MenuItem[];
   restaurant: RestaurantInfo;
-  onUpdateCategories: (cats: Category[]) => void;
-  onUpdateItems: (items: MenuItem[]) => void;
-  onUpdateRestaurant: (info: RestaurantInfo) => void;
+  onSyncAll: (
+    res: RestaurantInfo, 
+    cats: Category[], 
+    items: MenuItem[], 
+    deletions: { cats: string[], items: string[] }
+  ) => Promise<void>; // 🔹 Combined into one async call
   onLogout: () => void;
 }
 
@@ -38,11 +41,18 @@ const AdminPanel = ({ categories, items, restaurant, onUpdateCategories, onUpdat
   const [draftRestaurant, setDraftRestaurant] = useState<RestaurantInfo>(restaurant);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Sync drafts when props change (e.g. after save)
+  // 🔹 NEW: Trash bins for deletions
+  const [deletedItems, setDeletedItems] = useState<string[]>([]);
+  const [deletedCats, setDeletedCats] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync drafts when props change
   useEffect(() => {
     setDraftCategories(categories);
     setDraftItems(items);
     setDraftRestaurant(restaurant);
+    setDeletedItems([]);
+    setDeletedCats([]);
     setHasChanges(false);
   }, [categories, items, restaurant]);
 
@@ -82,13 +92,22 @@ const AdminPanel = ({ categories, items, restaurant, onUpdateCategories, onUpdat
     reader.readAsDataURL(file);
   };
 
-  // Save all changes
-  const saveAllChanges = () => {
-    onUpdateCategories(draftCategories);
-    onUpdateItems(draftItems);
-    onUpdateRestaurant(draftRestaurant);
-    setHasChanges(false);
-    toast({ title: "All changes saved!", description: "Your updates have been applied." });
+  // 🔹 UPDATED: Batch Save Function
+  const saveAllChanges = async () => {
+    setIsSaving(true);
+    try {
+      await onSyncAll(
+        draftRestaurant, 
+        draftCategories, 
+        draftItems, 
+        { cats: deletedCats, items: deletedItems }
+      );
+      toast({ title: "Success", description: "Cloud database updated." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to sync changes.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Category CRUD (on draft)
@@ -100,9 +119,17 @@ const AdminPanel = ({ categories, items, restaurant, onUpdateCategories, onUpdat
     markChanged();
   };
 
+  // 🔹 UPDATED: Delete Category
   const confirmDeleteCategory = (id: string) => {
     setDraftCategories(draftCategories.filter((c) => c.id !== id));
     setDraftItems(draftItems.filter((i) => i.category_id !== id));
+    
+    // Track for Supabase
+    setDeletedCats(prev => [...prev, id]);
+    // Also track items inside that category because they cascade
+    const cascadingItems = items.filter(i => i.category_id === id).map(i => i.id);
+    setDeletedItems(prev => [...prev, ...cascadingItems]);
+    
     markChanged();
   };
 
@@ -130,7 +157,20 @@ const AdminPanel = ({ categories, items, restaurant, onUpdateCategories, onUpdat
   };
 
   // Item CRUD (on draft)
-  const openNewItem = () => { resetItemForm(); setEditingItem(null); setItemFormOpen(true); };
+  const openNewItem = () => { 
+  if (draftCategories.length === 0) {
+    toast({ 
+      title: "No Categories found", 
+      description: "Please create a category first.", 
+      variant: "destructive" 
+    });
+    return;
+  }
+  resetItemForm(); 
+  setEditingItem(null); 
+  setItemFormOpen(true); 
+};
+  
   const openEditItem = (item: MenuItem) => {
     setEditingItem(item);
     setItemForm({ name: item.name, description: item.description, price: String(item.price), category_id: item.category_id, image_url: item.image_url, available: item.available, item_type: item.item_type || "veg" });
@@ -140,24 +180,35 @@ const AdminPanel = ({ categories, items, restaurant, onUpdateCategories, onUpdat
   };
 
   const saveItem = () => {
-    const price = parseFloat(itemForm.price);
-    if (!itemForm.name.trim() || isNaN(price) || !itemForm.category_id) {
-      toast({ title: "Please fill all required fields", variant: "destructive" });
-      return;
-    }
-    if (editingItem) {
-      const updated: MenuItem = { ...editingItem, ...itemForm, price, updated_at: new Date().toISOString() };
-      setDraftItems(draftItems.map((i) => (i.id === editingItem.id ? updated : i)));
-    } else {
-      const newItem: MenuItem = { id: `item-${Date.now()}`, ...itemForm, price, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-      setDraftItems([...draftItems, newItem]);
-    }
-    setItemFormOpen(false);
-    markChanged();
-  };
+  const price = parseFloat(itemForm.price);
+  if (!itemForm.name.trim() || isNaN(price) || !itemForm.category_id) {
+    toast({ title: "Please fill all required fields", variant: "destructive" });
+    return;
+  }
 
+  if (editingItem) {
+    const updated: MenuItem = { ...editingItem, ...itemForm, price, updated_at: new Date().toISOString() };
+    setDraftItems(draftItems.map((i) => (i.id === editingItem.id ? updated : i)));
+  } else {
+    // Generate a temporary ID that Supabase will accept as a new primary key
+    const newItem: MenuItem = { 
+      id: `item-${Date.now()}`, 
+      ...itemForm, 
+      price, 
+      created_at: new Date().toISOString(), 
+      updated_at: new Date().toISOString() 
+    };
+    setDraftItems([...draftItems, newItem]);
+  }
+  
+  setItemFormOpen(false);
+  markChanged(); // This triggers the "Update Changes" pulse button
+};
+  
+  // 🔹 UPDATED: Delete Item
   const confirmDeleteItem = (id: string) => {
     setDraftItems(draftItems.filter((i) => i.id !== id));
+    setDeletedItems(prev => [...prev, id]); // Track for Supabase
     markChanged();
   };
 
@@ -325,9 +376,15 @@ const AdminPanel = ({ categories, items, restaurant, onUpdateCategories, onUpdat
         {hasChanges && (
           <button
             onClick={saveAllChanges}
-            className="h-10 px-4 rounded-full bg-green-600 text-white flex items-center gap-2 shadow-lg hover:bg-green-700 transition-colors text-sm font-medium animate-pulse"
+            disabled={isSaving}
+            className="h-10 px-4 rounded-full bg-green-600 text-white flex items-center gap-2 shadow-lg hover:bg-green-700 transition-all text-sm font-medium disabled:opacity-50"
           >
-            <Save className="w-4 h-4" /> Update Changes
+            {isSaving ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {isSaving ? "Saving..." : "Update Changes"}
           </button>
         )}
         <button
