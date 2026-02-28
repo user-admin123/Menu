@@ -7,39 +7,29 @@ import { LogIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Props {
-  // Updated to reflect the async nature of the storage login
-  onLogin: (email: string, password: string) => Promise<boolean>;
+  onLogin: (email: string, password: string) => boolean;
 }
 
 const LoginModal = ({ onLogin }: Props) => {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false); // 🔹 Local loading state
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => { // 🔹 Added async
     e.preventDefault();
-    setIsLoading(true);
+    setIsVerifying(true);
     
-    try {
-      const success = await onLogin(email, password);
-      
-      if (success) {
-        setOpen(false);
-        setEmail("");
-        setPassword("");
-        toast({ title: "Welcome back!", description: "You're now logged in as owner." });
-      } else {
-        toast({ 
-          title: "Login failed", 
-          description: "Invalid email or password.", 
-          variant: "destructive" 
-        });
-      }
-    } catch (err) {
-      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+    const success = await onLogin(email, password); // 🔹 Added await
+    
+    setIsVerifying(false);
+    if (success) {
+      setOpen(false);
+      setEmail("");
+      setPassword("");
+      toast({ title: "Welcome back!", description: "You're now logged in as owner." });
+    } else {
+      toast({ title: "Login failed", description: "Invalid email or password.", variant: "destructive" });
     }
   };
 
@@ -62,31 +52,13 @@ const LoginModal = ({ onLogin }: Props) => {
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="admin@restaurant.com" 
-                required 
-                className="bg-muted/50" 
-              />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@restaurant.com" required className="bg-muted/50" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="••••••" 
-                required 
-                className="bg-muted/50" 
-              />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required className="bg-muted/50" />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Checking..." : "Sign In"}
-            </Button>
+            <Button type="submit" className="w-full">Sign In</Button>
           </form>
         </DialogContent>
       </Dialog>
