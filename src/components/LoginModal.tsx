@@ -58,7 +58,9 @@ const LoginModal = ({ onLogin }: Props) => {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" required className="bg-muted/50" />
             </div>
-            <Button type="submit" className="w-full">Sign In</Button>
+            <Button type="submit" className="w-full" disabled={isVerifying}>
+      {isVerifying ? "Checking..." : "Sign In"}
+    </Button>
           </form>
         </DialogContent>
       </Dialog>
