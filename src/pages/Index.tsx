@@ -50,25 +50,39 @@ const Index = () => {
   const isManualScroll = useRef(false);
 
   // --- 1. Connection Check Effect ---
-  useEffect(() => {
-    const checkConnection = async () => {
-      console.log("LOG: Checking Supabase Connection...");
-      try {
-        if (!supabase) throw new Error("Supabase client is undefined");
-        
-        const { error } = await supabase.from("user").select("id").limit(1);
-        
-        if (error) throw error;
-        
-        console.log("LOG: Supabase Connected Successfully");
-        setDbStatus({ loading: false, error: null });
-      } catch (err: any) {
-        console.error("LOG: Supabase Connection Error:", err.message);
-        setDbStatus({ loading: false, error: err.message || "Failed to connect" });
+useEffect(() => {
+  const checkConnection = async () => {
+    console.log("LOG: Attempting Supabase fetch...");
+    try {
+      if (!supabase) throw new Error("Supabase client is undefined");
+
+      // Use the 'count' approach for a lightweight check
+      const { data, error, status, statusText } = await supabase
+        .from("app_user")
+        .select("*", { count: 'exact', head: true });
+
+      // LOG THE RAW RESPONSE FOR DEBUGGING
+      console.log("LOG: Connection Result:", { data, status, statusText });
+
+      if (error) {
+        console.error("LOG: Supabase Error Object:", error);
+        throw error;
       }
-    };
-    checkConnection();
-  }, []);
+
+      console.log("LOG: Supabase Connected Successfully");
+      setDbStatus({ loading: false, error: null });
+    } catch (err: any) {
+      // THIS IS WHERE YOUR 'FAILED TO FETCH' IS CAUGHT
+      console.error("LOG: Detailed Catch Error:", err);
+      setDbStatus({ 
+        loading: false, 
+        error: err.message || "Failed to fetch (Network Error)" 
+      });
+    }
+  };
+
+  checkConnection();
+}, []);
 
   // --- 2. Set Active Category when data loads ---
   useEffect(() => {
