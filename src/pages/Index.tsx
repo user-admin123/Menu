@@ -56,7 +56,7 @@ const Index = () => {
       try {
         if (!supabase) throw new Error("Supabase client is undefined");
         
-        const { error } = await supabase.from("test_users").select("id").limit(1);
+        const { error } = await supabase.from("user").select("id").limit(1);
         
         if (error) throw error;
         
