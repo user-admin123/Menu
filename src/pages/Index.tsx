@@ -52,31 +52,40 @@ const Index = () => {
   // --- 1. Connection Check Effect ---
 useEffect(() => {
   const checkConnection = async () => {
-    console.log("LOG: Attempting Supabase fetch...");
+    console.log("LOG 3: Starting Connection Test...");
+    
     try {
-      if (!supabase) throw new Error("Supabase client is undefined");
+      // Log the exact URL the client is trying to reach
+      const targetUrl = `${(supabase as any).supabaseUrl}/rest/v1/app_user`;
+      console.log("LOG 4: Attempting to ping:", targetUrl);
 
-      // Use the 'count' approach for a lightweight check
       const { data, error, status, statusText } = await supabase
         .from("app_user")
         .select("*", { count: 'exact', head: true });
 
-      // LOG THE RAW RESPONSE FOR DEBUGGING
-      console.log("LOG: Connection Result:", { data, status, statusText });
-
       if (error) {
-        console.error("LOG: Supabase Error Object:", error);
+        console.error("LOG 5: Supabase responded with an error:", {
+          code: error.code,
+          message: error.message,
+          hint: error.hint
+        });
         throw error;
       }
 
-      console.log("LOG: Supabase Connected Successfully");
+      console.log("LOG 6: Success! Status:", status, "Data:", data);
       setDbStatus({ loading: false, error: null });
+
     } catch (err: any) {
-      // THIS IS WHERE YOUR 'FAILED TO FETCH' IS CAUGHT
-      console.error("LOG: Detailed Catch Error:", err);
+      // This is the critical log for status 0
+      console.error("LOG 7: Network/Fetch Catch:", {
+        message: err.message,
+        stack: err.stack,
+        isTypeError: err instanceof TypeError
+      });
+
       setDbStatus({ 
         loading: false, 
-        error: err.message || "Failed to fetch (Network Error)" 
+        error: err.message || "Network Error: Check if Supabase URL is correct." 
       });
     }
   };
